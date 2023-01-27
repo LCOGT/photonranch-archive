@@ -30,7 +30,7 @@ urlpatterns = [
     url(r'^robots.txt$', lambda r: HttpResponse("User-agent: *\nDisallow: /", content_type='text/plain')),
     url(r'^', include(frame_urls)),
     url(r'^', include(auth_urls)),
-    url(r'^admin/', admin.site.urls),
+    #url(r'^admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api-token-auth/', ObtainAuthTokenWithHeaders.as_view()),
     url(r'^revoke_token/', RevokeApiTokenApiView.as_view(), name='revoke_api_token'),
