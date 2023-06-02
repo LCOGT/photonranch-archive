@@ -1,5 +1,6 @@
 from archive.frames.models import Frame
 from archive.frames.utils import get_configuration_type_tuples
+from archive.settings import SCIENCE_CONFIGURATION_TYPES
 from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos.error import GEOSException
 from rest_framework.exceptions import ValidationError
@@ -45,6 +46,12 @@ class FrameFilter(django_filters.FilterSet):
         label='Exclude Configuration Types',
         exclude=True
     )
+    include_configuration_type = django_filters.MultipleChoiceFilter(
+        field_name='configuration_type',
+        choices=get_configuration_type_tuples(),
+        label='Include Configuration Types',
+    )
+    exclude_calibrations = django_filters.BooleanFilter(field_name='exclude_calibrations', method='exclude_calibrations_filter')
     intersects = django_filters.CharFilter(method='intersects_filter')
 
     def covers_filter(self, queryset, name, value):
@@ -67,8 +74,13 @@ class FrameFilter(django_filters.FilterSet):
                 user_proposals = self.request.user.profile.proposals
                 if user_proposals:
                     return queryset.filter(proposal_id__in=user_proposals)
+            else:
+                return queryset.exclude(public_date__lt=timezone.now())
+        return queryset
 
-            return queryset.exclude(public_date__lt=timezone.now())
+    def exclude_calibrations_filter(self, queryset, name, value):
+        if value:
+            return queryset.filter(configuration_type__in=SCIENCE_CONFIGURATION_TYPES)
         return queryset
 
     class Meta:

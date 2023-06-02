@@ -299,20 +299,77 @@ class TestQueryFiltering(ReplicationTestCase):
             content_type='application/json'
         )
         self.client.force_login(user)
-        proposal_frame = FrameFactory(public_date=datetime.datetime(2999, 1, 1, tzinfo=UTC), proposal_id='prop1')
+        proposal_proprietary_frame = FrameFactory(public_date=datetime.datetime(2999, 1, 1, tzinfo=UTC), proposal_id='prop1')
+        proposal_public_frame = FrameFactory(public_date=datetime.datetime(1992, 11, 14, tzinfo=UTC), proposal_id='prop1')
+        non_proposal_proprietary_frame = FrameFactory(public_date=datetime.datetime(2999, 1, 1, tzinfo=UTC), proposal_id='prop2')
         public_frame = PublicFrameFactory()
 
+        # If public=false, then a logged in user should see all of their own data, proprietary or not
         for false_string in ['false', 'False', '0']:
             response = self.client.get(reverse('frame-list') + '?public={}'.format(false_string))
-            self.assertContains(response, proposal_frame.basename)
+            self.assertContains(response, proposal_proprietary_frame.basename)
+            self.assertContains(response, proposal_public_frame.basename)
             self.assertNotContains(response, public_frame.basename)
+            self.assertNotContains(response, non_proposal_proprietary_frame)
+
+        # If public=true, then a logged in user should see all their data + all public data
+        for true_string in ['true', 'True', '1']:
+            response = self.client.get(reverse('frame-list') + '?public={}'.format(true_string))
+            self.assertContains(response, proposal_proprietary_frame.basename)
+            self.assertContains(response, proposal_public_frame.basename)
+            self.assertContains(response, public_frame.basename)
+            self.assertNotContains(response, non_proposal_proprietary_frame)
+
+        # If public not specified, then show everything
+        response = self.client.get(reverse('frame-list'))
+        self.assertContains(response, proposal_proprietary_frame.basename)
+        self.assertContains(response, proposal_public_frame.basename)
+        self.assertContains(response, public_frame.basename)
+        self.assertNotContains(response, non_proposal_proprietary_frame)
 
         self.client.logout()
 
+        # If public=false, an anonymous user shouldn't see anything
         for false_string in ['false', 'False', '0']:
             response = self.client.get(reverse('frame-list') + '?public={}'.format(false_string))
-            self.assertNotContains(response, proposal_frame.basename)
+            self.assertNotContains(response, proposal_proprietary_frame.basename)
+            self.assertNotContains(response, proposal_public_frame.basename)
             self.assertNotContains(response, public_frame.basename)
+
+        # If public=true an anonymous user should only see publicly available data
+        for true_string in ['true', 'True', '1']:
+            response = self.client.get(reverse('frame-list') + '?public={}'.format(true_string))
+            self.assertNotContains(response, proposal_proprietary_frame.basename)
+            self.assertContains(response, proposal_public_frame.basename)
+            self.assertContains(response, public_frame.basename)
+            self.assertNotContains(response, non_proposal_proprietary_frame)
+
+        # If public not specified, anonymous users should still only see public data
+        response = self.client.get(reverse('frame-list'))
+        self.assertNotContains(response, proposal_proprietary_frame.basename)
+        self.assertContains(response, proposal_public_frame.basename)
+        self.assertContains(response, public_frame.basename)
+        self.assertNotContains(response, non_proposal_proprietary_frame)
+
+    @responses.activate
+    def test_exclude_calibrations_filter(self):
+        science_frame = FrameFactory(public_date=datetime.datetime(2020, 11, 14, tzinfo=UTC), configuration_type='EXPOSE')
+        bias_frame = FrameFactory(public_date=datetime.datetime(2020, 11, 14, tzinfo=UTC), configuration_type='BIAS')
+
+        for false_string in ['false', 'False', '0']:
+            response = self.client.get(reverse('frame-list') + '?exclude_calibrations={}'.format(false_string))
+            self.assertContains(response, science_frame.basename)
+            self.assertContains(response, bias_frame.basename)
+
+        for true_string in ['true', 'True', '1']:
+            response = self.client.get(reverse('frame-list') + '?exclude_calibrations={}'.format(true_string))
+            self.assertContains(response, science_frame.basename)
+            self.assertNotContains(response, bias_frame.basename)
+
+        response = self.client.get(reverse('frame-list'))
+        self.assertContains(response, science_frame.basename)
+        self.assertContains(response, bias_frame.basename)
+
 
     def test_area_covers(self):
         frame = PublicFrameFactory.create(
@@ -510,7 +567,7 @@ class TestFunpackViewSet(ReplicationTestCase):
         mock_proc = MagicMock()
         mock_proc.stdout = b'test_value'
         mock_subprocess.run.return_value = mock_proc
-        response = self.client.get(reverse('frame-funpack-funpack', kwargs={'pk': self.frame.version_set.first().id}))
+        response = self.client.get(reverse('frame-funpack-funpack', kwargs={'pk': self.frame.id}))
         mock_subprocess.run.assert_called_with(
             ['/usr/bin/funpack', '-C', '-S', '-'], input=b'', stdout=mock_subprocess.PIPE
         )
@@ -521,7 +578,7 @@ class TestFunpackViewSet(ReplicationTestCase):
         """Test that funpack download endpoint returns correct response following a failure."""
         mock_run.side_effect = subprocess.CalledProcessError(-9, 'funpack')
 
-        response = self.client.get(reverse('frame-funpack-funpack', kwargs={'pk': self.frame.version_set.first().id}))
+        response = self.client.get(reverse('frame-funpack-funpack', kwargs={'pk': self.frame.id}))
 
         self.assertContains(response,
                             'There was a problem downloading your files. Please try again later or select fewer files.',
