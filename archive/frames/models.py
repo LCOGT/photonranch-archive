@@ -50,13 +50,13 @@ class Frame(models.Model):
     )
     site_id = models.CharField(
         default='',
-        max_length=3,
-        help_text="Originating site code. Usually the 3 character airport code of the nearest airport"
+        max_length=9,
+        help_text="Originating site code"
     )
     telescope_id = models.CharField(
         default='',
-        max_length=4,
-        help_text="Originating telescope 4 character code. Ex. 1m0a or 0m4b"
+        max_length=9,
+        help_text="Originating telescope character code. Ex. 1m0a or 0m4b"
     )
     exposure_time = models.FloatField(
         null=True,
