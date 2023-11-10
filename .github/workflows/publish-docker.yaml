@@ -1,14 +1,14 @@
 name: Push Docker Image
 
 on:
+  # Run this workflow for pushes on all branches
   push:
     branches:
-      - "main"
-    # Publish semver tags as releases.
-    tags:
-      - "*.*.*"
+      - '**'
+  # Run this workflow when a tag or branch is created
+  create:
+  # Run this workflow for pull requests
   pull_request:
-    branches: [ main ]
 
 env:
   # Use docker.io for Docker Hub if empty
