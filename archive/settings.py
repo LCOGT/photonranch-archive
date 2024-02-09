@@ -203,8 +203,8 @@ REST_FRAMEWORK = {
         'archive.authentication.throttling.AllowStaffUserRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '1000/day',
-        'user': '50000/day',
+        'anon': '200000/day',
+        'user': '1000000000/day',
     },
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
